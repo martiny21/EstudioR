@@ -1,0 +1,214 @@
+---
+title: "Repaso PEP 1"
+author: "Martin Salinas"
+date: "2024-11-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Repaso practico para la PEP 1
+
+## Para instalar paquetes en caso de no tenerlos
+
+```{r}
+if(!require(Nombre del paquete)){
+  install.packages("nombre del paquete", dependencies=TRUE)
+  require(nombre del paquete)
+}
+
+```
+
+## Librerias usadas en la unidad:
+
+```{r}
+#Listado de todas las librerias utilizadas
+```
+
+## Manejo de datos
+
+```{r}
+#Data frame ejemplo
+
+nombre <- c("Alan brito", "Zacarias", "Elsa payo")
+prueba1 <- c(5.5, 3.4, 4.5)
+prueba2 <- c(3.2, 4.3, 5.1)
+prueba3 <- c(4.8, 4.3, 5.1)
+fecha <- as.Date(c("2008-1-25" ,"2006-10-4","2008-3-27"))
+
+dataframe <- data.frame(nombre,
+                        fecha,
+                        prueba1,
+                        prueba2,
+                        prueba3,
+                        stringsAsFactors = FALSE)
+```
+
+Para trabajar los datos tenemos la biblioteca dplyr
+
+```{r}
+library(dplyr)
+
+
+#Datos para ejemplo
+datos <- iris
+
+# Seleccionar observaciones correspondientes a la especie versicolor
+versicolor <- datos %>% filter(Species == "versicolor")
+
+# filtrar obs de la especie versicolor con petalos con longitud igual o  superior a 6 cm
+largas <- datos %>% filter(Species == "versicolor" & Sepal.Length >= 6)
+
+#Seleccionar la especie y variables relativas a los petalos
+petalos <- datos %>% select(Species, starts_with("Petal"))
+
+# Agregar a los datos de los petalos una nueva variable con la razon entre el largo y el ancho de estos
+petalos <- petalos %>% mutate(Species, Petal.Width,
+                              Petal.ratio = Petal.Length / Petal.Width)
+
+# Ordenar el conjunto de datos de petalos en forma descedente segun la razo de los petalos
+petalos <- petalos %>% arrange(desc(Petal.ratio))
+```
+
+Tambien se tiene la funcion para pivotear la matriz de datos pivot_longer(cols, names_to, values_to) del paquete tidyr
+
+cols: nombres de las columnas a pivotar
+names_to: especifica el nombre de una nueva columna cuyos valores corresponden a los nombres de las columnas a pivotar
+values_to: especifica el nombre de una nueva columna donde se almacenan los valores de las columnas a pivotar
+
+Para pivotear la matriza a formato ancho tenemos pivot_wider(names_from, values_from) de tidyr
+names_from: especifica el nombre de una variable desde la que se obtienen los nombres de las nuevas columnas
+values_from: especifica el nombre de una variable desde donde se obtienen los valoresd de las nuevas columnas
+
+```{r}
+library(dplyr)
+library(tidyr)
+
+instancia <- 1:6
+Quicksort <- c(23.2, 22.6, 23.4, 23.3, 21.8, 23.9)
+Bubblesort <- c(31.6, 29.3, 30.7, 30.8, 29.8,30.3)
+Radixsort <- c(30.1, 28.4, 28.7, 28.3, 29.9, 29.1)
+Mergesort <- c(1, 2, 3, 4, 5, 6)
+datos <- data.frame(instancia, Quicksort, Bubblesort, Radixsort, Mergesort)
+
+#Convertir matriz a formato a datos formato largo
+datos_largos <- datos %>% pivot_longer(c("Quicksort","Bubblesort",
+                                            "Radixsort","Mergesort"),
+                                          names_to = "Algoritmo",
+                                          values_to = "Tiempo")
+
+datos_ancho <- datos_largos %>% pivot_wider(names_from = "Algoritmo",
+                                            values_from = "Tiempo")
+
+```
+
+### Formulas
+
+Las formulas siempre siguen el formato
+
+<variable dependiente> ~ <variable independiente>
+
+## Lectura 2
+
+
+## Lectura 3
+
+### shapiro test
+
+Funcion para saber si la muestra sigue una distribución normal
+
+shapiro.test(x) x vector con las observaciones de la muestra.
+
+### z test
+
+Para la prueba z tenemos la funcion z.test(x, mu, stdev, alternative, conf.level)
+
+x: vector con las observaciones de la muestra
+mu: valor nulo
+stdev: desviacion estandar de la población
+alternative: tipo de hipotesis alternativa, "two.sided","less","greater"
+conf.level: nivel de confianza
+
+```{r}
+library(TeachingDemos)
+library(ggpubr)
+
+muestra <- c(19, 29, 29.1, 32.1,25,0,22,31,36.9,31.4,17.6,23,20.6,24,28,26,29,29,26,27,20)
+
+desv_est <- 2.32
+n <- length(muestra)
+valor_nulo <- 20
+
+##Grafico qqplot
+g <- ggqqplot(datos, x = "muestra", color = "steelBlue")
+print(g)
+
+#nivel de significación
+alfa <- 0.01
+
+media <- mean(muestra)
+
+Z <- (media - valor_nulo) / (desv_est/ sqrt(n))
+
+p <- 2 * pnorm(Z, lower.tail = FALSE)
+
+prueba1 <- z.test(media, mu = valor_nulo, n = 20, alternative = "two.sided",stdev = desv_est, conf.level = 1-alfa)
+
+prueba2 <- z.test(muestra, mu = valor_nulo, alternative = "two.sided",stdev = desv_est, conf.level = 1-alfa)
+
+```
+
+
+### Prueba t de student
+
+```{r prueba t de student}
+library(ggpubr)
+
+tiempo <- c(411, 393, 445 ,498, 231, 134 ,445,430, 408,  463, 409,418)
+
+alfa <- 0.025
+valor_nulo <- 500
+
+t.test(tiempo, 
+       alternative = "less",
+       mu = valor_nulo,
+       conf.level = 1 - alfa)
+
+#Sean 2 muestras t_A y t_B
+
+diferencia <- t_A - t_B
+
+prueba1 <- t.test(diferencia,
+                  alternative = "two.sided",
+                  mu = valor_nulo,
+                  conf.level = 1 - alfa)
+
+prueba2 <- t.test(x = t_A,
+                  y = t_B,
+                  paired = TRUE,
+                  alternative = "two.sided",
+                  mu = valor_nulo,
+                  conf.leve = 1 - alfa)
+
+#Para independientes lo unico que cambia es el paired que cambia de FALSE a TRUE y que solo se puede hacer como la prueba 2
+
+```
+
+### Metodo de Wald
+
+
+```{r Metodo de Wald}
+#Valores
+n <- 150
+p_exito <- 0.64
+alfa <- 0.05
+valor_nulo <- 0.7
+
+#Construccion intervalo de confianza
+error_est <- sqrt((valor_nulo * (1 - valor_nulo))/n)
+Z_critico <- qnorm(alfa / 2, lower.tail = FALSE)
+inferior <- p_exito - Z
+```
+
