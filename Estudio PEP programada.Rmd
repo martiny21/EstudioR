@@ -74,13 +74,9 @@ petalos <- petalos %>% arrange(desc(Petal.ratio))
 
 Tambien se tiene la funcion para pivotear la matriz de datos pivot_longer(cols, names_to, values_to) del paquete tidyr
 
-cols: nombres de las columnas a pivotar
-names_to: especifica el nombre de una nueva columna cuyos valores corresponden a los nombres de las columnas a pivotar
-values_to: especifica el nombre de una nueva columna donde se almacenan los valores de las columnas a pivotar
+cols: nombres de las columnas a pivotar names_to: especifica el nombre de una nueva columna cuyos valores corresponden a los nombres de las columnas a pivotar values_to: especifica el nombre de una nueva columna donde se almacenan los valores de las columnas a pivotar
 
-Para pivotear la matriza a formato ancho tenemos pivot_wider(names_from, values_from) de tidyr
-names_from: especifica el nombre de una variable desde la que se obtienen los nombres de las nuevas columnas
-values_from: especifica el nombre de una variable desde donde se obtienen los valoresd de las nuevas columnas
+Para pivotear la matriza a formato ancho tenemos pivot_wider(names_from, values_from) de tidyr names_from: especifica el nombre de una variable desde la que se obtienen los nombres de las nuevas columnas values_from: especifica el nombre de una variable desde donde se obtienen los valoresd de las nuevas columnas
 
 ```{r}
 library(dplyr)
@@ -108,10 +104,9 @@ datos_ancho <- datos_largos %>% pivot_wider(names_from = "Algoritmo",
 
 Las formulas siempre siguen el formato
 
-<variable dependiente> ~ <variable independiente>
+<variable dependiente> \~ <variable independiente>
 
 ## Lectura 2
-
 
 ## Lectura 3
 
@@ -125,11 +120,7 @@ shapiro.test(x) x vector con las observaciones de la muestra.
 
 Para la prueba z tenemos la funcion z.test(x, mu, stdev, alternative, conf.level)
 
-x: vector con las observaciones de la muestra
-mu: valor nulo
-stdev: desviacion estandar de la población
-alternative: tipo de hipotesis alternativa, "two.sided","less","greater"
-conf.level: nivel de confianza
+x: vector con las observaciones de la muestra mu: valor nulo stdev: desviacion estandar de la población alternative: tipo de hipotesis alternativa, "two.sided","less","greater" conf.level: nivel de confianza
 
 ```{r}
 library(TeachingDemos)
@@ -159,7 +150,6 @@ prueba1 <- z.test(media, mu = valor_nulo, n = 20, alternative = "two.sided",stde
 prueba2 <- z.test(muestra, mu = valor_nulo, alternative = "two.sided",stdev = desv_est, conf.level = 1-alfa)
 
 ```
-
 
 ### Prueba t de student
 
@@ -198,7 +188,6 @@ prueba2 <- t.test(x = t_A,
 
 ### Metodo de Wald
 
-
 ```{r Metodo de Wald}
 #Valores
 n <- 150
@@ -207,8 +196,82 @@ alfa <- 0.05
 valor_nulo <- 0.7
 
 #Construccion intervalo de confianza
-error_est <- sqrt((valor_nulo * (1 - valor_nulo))/n)
+error_est <- sqrt((p_exito * (1 - p_exito))/n)
 Z_critico <- qnorm(alfa / 2, lower.tail = FALSE)
-inferior <- p_exito - Z
+inferior <- p_exito - Z_critico * error_est
+superior <- p_exito + Z_critico * error_est
+
+# Prueba de hipotesis
+error_est_hip <- sqrt((valor_nulo * (1 - valor_nulo)) / n)
+z <- (p_exito - valor_nulo) / error_est_hip
+p <- pnorm(Z, lower.tail = FALSE)
+
+```
+
+```{r wald para dos proporciones}
+n_hombres <- 48
+n_mujeres <- 42
+exitos_hombres <- 26
+exitos_mujeres <- 20
+alfa <- 0.05
+valor_nulo <- 0
+
+# Calcular probabilidades de éxito.
+p_hombres <- exitos_hombres / n_hombres
+p_mujeres <- exitos_mujeres / n_mujeres
+
+# Estimar la diferencia.
+diferencia <- p_hombres - p_mujeres
+
+# Construcción del intervalo de confianza.
+error_hombres <- (p_hombres * (1 - p_hombres)) / n_hombres
+error_mujeres <- (p_mujeres * (1 - p_mujeres)) / n_mujeres
+error_est <- sqrt(error_hombres + error_mujeres)
+z_critico <- qnorm(alfa / 2, lower.tail = FALSE)
+inferior <- diferencia - z_critico * error_est
+superior <- diferencia + z_critico * error_est
+cat("Intervalo de confianza = [", inferior, ", ", superior, "]\n", sep = "")
+
+# Prueba de hipótesis.
+p_agrupada <- (exitos_hombres + exitos_mujeres) / (n_hombres + n_mujeres)
+error_hombres <- (p_agrupada * (1 - p_agrupada)) / n_hombres
+error_mujeres <- (p_agrupada * (1 - p_agrupada)) / n_mujeres
+error_est_hip <- sqrt(error_hombres + error_mujeres)
+z <- (diferencia - valor_nulo) / error_est_hip
+p_valor <- 2 * pnorm(z, lower.tail = FALSE)
+
+
+```
+
+### Metodo de wilson
+
+```{r metodo de wilson}
+# Script 6.4: método de Wilson para una proporción.
+
+# Fijar valores conocidos
+n <- 150
+p_exito <- 0.64
+alfa <- 0.05
+valor_nulo <- 0.7
+
+# Calcular cantidad de éxitos.
+exitos <- p_exito * n
+
+# Prueba de Wilson en R.
+prueba <- prop.test(exitos, n = n, p = valor_nulo,
+                    alternative = "greater", conf.level = 1 - alfa)
+print(prueba)
+```
+
+```{r método de Wilson para la diferencia entre dos proporciones}
+# Fijar valores conocidos (hombres, mujeres)
+n <- c(48, 42)
+exitos <- c(26, 20)
+alfa <- 0.05
+
+# Prueba de Wilson en R.
+prueba <- prop.test(exitos, n = n, alternative = "two.sided",
+                    conf.level = 1 - alfa)
+print(prueba)
 ```
 
