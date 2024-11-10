@@ -1,0 +1,89 @@
+---
+title: "Untitled"
+author: "Martin Salinas"
+date: "2024-10-20"
+output: html_document
+---
+
+H0: En promedio no hay diferencias significativas en el peso de los pollitos en base al tiempo de nacido de los pollitos
+Ha: Existe diferencia significativa en la media de las diferencias de los pesos en almenos un par de tiempos de nacidos
+
+La condicion de que la variable dependiente tenga propiedades de una escala de intervalos iguales se cumple pues esta esta en escala de gramos.
+
+No se puede asegurar que la muestra haya sido seleccionada de forma aleatoria, para cumplir la condicion de independencia al interior de cada grupo, pero asumiendo que asi sea.
+
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(dplyr)
+library(nlme)
+library(ez)
+library(emmeans)
+
+
+datos <- subset(ChickWeight, Time %in% c(0, 4, 8), select = c(weight, Time, Chick))
+
+
+# Convertir Time a factor
+datos[["Time"]] <- factor(datos[["Time"]])
+
+
+# Graficar Q-Q plot
+g <- ggqqplot(datos, x = "weight", color = "Time")
+g <- g + facet_wrap(~ Time)
+g <- g + rremove("x.ticks") + rremove("x.text")
+g <- g + rremove("y.ticks") + rremove("y.text")
+g <- g + rremove("axis.title")
+print(g)
+
+```
+
+A simple vista se pueden ver ciertos valores atipicos en 8 muy cerca del borde y para 0 dias se ve poco a simple vista, en general los puntos parecen seguir la normalidad.
+
+```{r}
+
+testNormalidad <- datos %>%
+  group_by(Time) %>%
+  summarise(shapiro_p_value = shapiro.test(weight)$p.value)
+
+# Mostrar los resultados
+print(testNormalidad)
+```
+
+En base a esto podemos ver que se rechaza la hipotesis nula de que el tiempo 0 sigue una distribucion normal, con incluso mas de un 99% de confianza y por lo tanto se puede concluir que no se cumplen las condiciones para realizar la prueba ANOVA para muestras correlacionadas.
+
+De todas formas vamos a hacer la prueba
+```{r}
+#Eliminar dato que se encontraba grupo que se encontraba incompleto
+datos <- datos %>%
+  filter(Chick != 18)
+
+anova <- ezANOVA(data = datos, dv = weight, within = Time,
+                  wid = Chick, return_aov = TRUE)
+
+# Imprimir resultados del ANOVA
+cat("\nResultados del ANOVA:\n")
+print(anova)
+
+# Procedimiento post-hoc Bonferroni
+bonferroni <- pairwise.t.test(datos[["weight"]], datos[["Time"]],
+                              p.adj = "bonferroni", paired = TRUE)
+cat("\n\nCorrección Bonferroni:\n")
+print(bonferroni)
+
+# Procedimiento post-hoc Holm
+holm <- pairwise.t.test(datos[["weight"]], datos[["Time"]],
+                        p.adj = "holm", paired = TRUE)
+cat("\n\nCorrección Holm:\n")
+print(holm)
+
+# Procedimiento post-hoc HSD de Tukey
+mixto <- lme(weight ~ Time, data = datos, random = ~1|Chick)
+medias <- emmeans(mixto, "Time")
+tukey <- pairs(medias, adjust = "tukey")
+
+cat("\n\nPrueba HSD de Tukey:\n\n")
+print(tukey)
+```
+
