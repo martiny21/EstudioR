@@ -1,0 +1,85 @@
+---
+title: "Lectura 10"
+author: "Sofia Gacitua"
+date: "2024-11-10"
+output: html_document
+---
+
+Script 11.7: Prueba de Kruskal-Wallis y el procedimiento post-hoc de Holm para el ejemplo
+
+```{r}
+# Construir la mariz de datos.
+A <- c(24, 23, 26, 21, 24, 24, 25, 22, 23, 22, 23, 23)
+B <- c(17, 15, 18, 20, 19, 21, 20, 18, 19)
+C <- c(10, 11, 14, 11, 15, 12, 12, 10, 9, 13, 12, 12, 10, 10)
+D <- c(18, 16, 18, 15, 16, 15, 18, 16)
+Tiempo <- c(A, B, C, D)
+
+Criterio <- c(rep("A", length(A)),
+              rep("B", length(B)),
+              rep("C", length(C)),
+              rep("D", length(D)))
+
+Criterio <- factor(Criterio)
+
+datos <- data.frame(Tiempo, Criterio)
+
+# Establecer nivel de significación
+alfa <- 0.01
+# Hacer la prueba de Kruskal-Wallis.
+prueba <- kruskal.test(Tiempo ~ Criterio, data = datos)
+print (prueba)
+
+# Efectuar procedimiento post-hoc de Benjamini & Hochberg
+# si se encuentran diferencias significativas.
+if(prueba[["p.value"]] < alfa) {
+  post_hoc <- pairwise.wilcox.test(datos[["Tiempo"]],
+                                   datos[["Criterio"]],
+                                   p.adjust.method = "BH",
+                                   paired = FALSE,
+                                   exact = FALSE)
+  print(post_hoc)
+}
+```
+
+Script 11.8: Prueba de Friedman y el procedimiento post-hoc de Holm para el ejemplo
+
+```{r}
+# Construir la matriz de datos.
+A <- c(21, 10, 7, 21, 24, 27, 17)
+B <- c(6, 21, 18, 7, 24, 13, 13)
+C <- c(13, 25, 18, 20, 24, 8, 29)
+
+Puntuacion <- c(A, B, C)
+
+Interfaz <- c(rep("A", length(A)),
+              rep("B", length(B)),
+              rep("C", length(C)))
+
+Caso <- rep(1:7, 3)
+
+Interfaz <- factor(Interfaz)
+
+datos <- data.frame(Caso, Puntuacion, Interfaz)
+
+# Establecer nivel de significación
+alfa <- 0.05
+
+# Hacer la prueba de Friedman.
+prueba <- friedman.test(Puntuacion ~ Interfaz | Caso, data = datos)
+print(prueba)
+
+# Efectuar procedimiento post-hoc de Holm si se encuentran diferencias
+# significativas o por fines académicos.
+fines_académicos <- TRUE
+
+if(prueba$p.value < alfa || fines_académicos) {
+  post_hoc <- pairwise.wilcox.test(datos$Puntuacion,
+                                   datos$Interfaz,
+                                   p.adjust.method = "holm",
+                                   paired = TRUE,
+                                   exact = FALSE)
+  print(post_hoc)
+}
+
+```
