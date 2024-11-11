@@ -1,0 +1,263 @@
+---
+title: "Solución Tarea 1"
+author: "Sofia Gacitua"
+date: "2024-11-11"
+output: html_document
+---
+
+# Enunciado
+
+**Los intervalos de confianza y la capacidad de conocer la forma de la distribución muestral de los modelos estadísticos más simples, como las medias y las proporciones, nos permite, poner a prueba una hipótesis sobre el valor del parámetro en la población. Esto lo hicimos en el curso pasado, y aquí queremos recordarlo y aclarar los procedimientos y el funcionamiento de las herramientas en R para realizarlos.**
+
+**Trabajaremos con el siguiente estudio: el Comité Olímpico de una gran potencia del atletismo está estudiando el programa de entrenamiento de varones para la competencia de 100 metros planos, por lo que ha recopilado datos de una muestra aleatoria de atletas. La siguiente tabla detalla las variables registradas en este estudio.**
+
+| **Variable**  | **Descripción**                                                                                                                  |
+|:----------------|:------------------------------------------------------|
+| **Id**        | **Identificador único para cada atleta.**                                                                                        |
+| **Raza**      | **Raza del atleta (categórica: Blanca, Negra, Oriental).**                                                                       |
+| **Previo**    | **Mejor tiempo registrado por el atleta antes de ingresar al programa de entrenamiento (numérica, en segundos).**                |
+| **Posterior** | **Mejor tiempo registrado por el atleta después de los primeros 6 meses del programa de entrenamiento (numérica, en segundos).** |
+
+En el contexto de este estudio, realizaremos las siguientes actividades:
+
+1.  Obtener, desde el directorio compartido para este ejercicio práctico, el conjunto de datos recolectado.
+2.  Copiar los enunciados de los problemas asignados como comentarios de un script R.
+3.  Proponer una hipótesis nula y una hipótesis alternativa para cada caso.
+4.  Escribir código R para verificar que se cumplen las condiciones necesarias para docimar las hipótesis con las pruebas seleccionadas.
+5.  Escribir código R para realizar las pruebas de hipótesis seleccionadas.
+6.  Redactar respuestas a las preguntas planteadas (comentarios) en base a los resultados del análisis realizado.
+
+```{r}
+library(dplyr)
+library(ggpubr)
+
+# A continuación obtengamos los datos.
+
+# src_dir <- "~/Downloads"
+src_basename <- "EP02 Datos.csv"
+src_file <- file.path(src_dir, src_basename)
+
+datos <- read.csv2(src_basename, stringsAsFactors = TRUE)
+```
+
+# Pregunta 1
+
+El Comité Olímpico cree que el mejor tiempo medio de los atletas de raza blanca después de ingresar al programa de entrenamiento es superior a 17,23 segundos. ¿Soportan los datos esta afirmación?
+
+En este caso, debemos inferir acerca de la **población** de atletas de raza blanca que no han pasado por el entrenamiento. Filtramos los datos para obtener los necesitados
+
+```{r}
+datos_1 <- datos |>  filter(Raza == "Blanca") |> pull(Previo)
+n_1 <- length(datos_1)
+
+cat("Tamaño de la muestra:", n_1, "\n")
+```
+
+Como la muestra es pequeña (menos de 30 observaciones) y no conocemos la desviación estándar de la población, sería adecuado usar la **prueba t de Student para una muestra**. Pero antes debemos verificar las condiciones.
+
+Como se trata de 26 atletas diferentes, la muestra fue seleccionada de manera aleatoria y representa menos del 10% de todos los atletas varones de raza blanca, podemos asumir que las observaciones son independientes entre sí.
+
+Ahora debemos verificar si las observaciones presentan una distribución cercana a la normal. Una forma de hacer esto es mediante la prueba de normalidad de Shapiro-Wilk.
+
+```{r}
+normalidad_1 <- shapiro.test(datos_1)
+
+cat("Comprobación de la normalidad de los datos:\n")
+print(normalidad_1)
+```
+
+Puesto que el estadístico obtenido (W=0,977) nos lleva a un valor p alto (p=0,793), no podemos descartar que la muestra proviene de una distribución normal, por lo que podemos aplicar la prueba seleccionada.
+
+Como no hay indicios de que tengamos que ser cautelosos con los resultados, fijamos el nivel de significación en α=0,05. Ahora debemos formular las hipótesis:
+
+H0: antes del entrenamiento, la media de las mejores marcas de los atletas de raza blanca (μantesB) en 100 metros planos es de 17,23 segundos (μBantes=17,23 [s]).
+
+HA: antes del entrenamiento, la media de las mejores marcas de los atletas de raza blanca en 100 metros planos es distinta de 17,23 segundos (μBantes≠17,23 [s]).
+
+Efectuamos la prueba con estas condiciones:
+
+```{r}
+alfa_1 <- 0.05
+valor_nulo_1 <- 17.23
+
+prueba_1 <- t.test(datos_1, alternative = "two.sided", mu = valor_nulo_1, conf.level = 1 - alfa_1)
+
+cat("Prueba de hipótesis pregunta 1:\n")
+print(prueba_1)
+```
+
+Ahora debemos interpretar lo que nos dice la prueba realizada.
+
+La verdadera media de las mejores marcas de atletas de raza blanca antes de entrar al programa de entrenamiento es distinta de 17,23 [s] (t(25)=4,517;p<0,001). Con 95% de confianza se encuentra en el intervalo [16,100;16,808].
+
+# Pregunta 2
+
+**¿Sugieren los datos que en promedio la mejor marca de los atletas de raza oriental se reduce en menos de 6,45 segundos tras el entrenamiento?**
+
+En este caso, debemos inferir acerca de las medias de dos muestras apareadas, es decir sobre el valor de la **media de las diferencias** de los pares de observaciones. Obtengamos las muestras con las que trabajaremos y sus tamaños (que es el mismo para ambas, al estar pareadas).
+
+```{r}
+datos_2_ant <- datos |> filter(Raza == "Oriental") |> pull("Previo")
+datos_2_pos <- datos |> filter(Raza == "Oriental") |> pull("Posterior")
+n_2 <- length(datos_2_ant)
+
+cat("Tamaño de la muestra:", n_2, "\n")
+```
+
+Como la muestra es pequeña (menos de 30 observaciones) y no conocemos la desviación estándar de la población, sería adecuado usar la **prueba t de Student para dos muestras apareadas**. Pero antes debemos verificar las condiciones.
+
+Como se trata de 27 atletas diferentes seleccionados aleatoriamente, menor al 10% de la población, podemos suponer que los pares de observaciones son independientes entre sí.
+
+Ahora debemos verificar si las diferencias presentan una distribución cercana a la normal. Una forma de hacer esto es mediante un gráfico Q-Q.
+
+```{r}
+datos_2_difs <- datos_2_ant - datos_2_pos
+g_qq2 <- ggqqplot(data.frame(dif = datos_2_difs), x = "dif",
+                  color = "#6D9EC1", fill = "#BFD5E3",
+                  add = "sd", #add.params = list(color = "#FC4E07"),
+                  title = "Gráfico Q-Q de las diferencias observadas",
+                  xlab = " ", ylab = "Tiempo [s]")
+print(g_qq2)
+```
+
+La forma de los datos en el gráfico no se aleja tanto de una recta, y podemos ver que no hay evidencia de valores atípicos, pues no hay puntos fuera de la banda coloreada.
+
+Como no hay indicios de que tengamos que ser cautelosos con los resultados, fijamos el nivel de significación en 0,05.
+
+Ahora debemos formular las hipótesis:
+
+H0: tras el entrenamiento, la media de las mejores marcas de los atletas de raza oriental en los 100 metros planos se redujo en 6,45 segundos, es decir, si di=xiantes−xidespués, entonces μd=6,45 [s], donde (xantesi,xdespuési) son los mejores registros antes y despúes del entrenamiento, respectivamente, observados para el i-ésimo atleta.
+
+HA: tras el entrenamiento, la media de las mejores marcas de los atletas de raza oriental en los 100 metros planos se redujo en menos de 6,45 segundos, es decir μd<6,45 [s]).
+
+Debemos fijarnos bien **en qué orden** vamos a calcular las diferencias. Como escribimos las hipótesis, si se resta la media de los mejores tiempos después del entrenamiento a la media de los mejores tiempos antes del entrenamiento, esperamos que esta diferencia sea positiva (mayores tiempos antes del entrenamiento), por lo que el valor nulo también debe ser **positivo** y la hipótesis alternativa es que la verdadera diferencia promedio es **menor** (`less`) a este valor. Si hubiéramos considerado la diferencia como la media de los mejores tiempos después del entrenamiento menos la media de los mejores tiempos antes del entrenamiento, esperaríamos un valor negativo y, en consecuencia, el valor nulo ha de ser **negativo** y la hipótesis alternativa esperaría encontrar un valor **mayor** (`greater`) a este número hipotético. Efectuamos (solo por esta vez, por razones pedagógicas) ambas versiones de la prueba con estas consideraciones:
+
+```{r}
+alfa_2 <- 0.05
+valor_nulo_2a <- 6.45
+valor_nulo_2b <- -6.45
+
+prueba_2a <- t.test(x = datos_2_ant, y = datos_2_pos,
+                    alternative = "less", mu = valor_nulo_2a,
+                    paired = TRUE, conf.level = 1 - alfa_2)
+prueba_2b <- t.test(x = datos_2_pos, y = datos_2_ant,
+                    alternative = "greater", mu = valor_nulo_2b,
+                    paired = TRUE, conf.level = 1 - alfa_2)
+
+cat("Prueba de hipótesis pregunta 2:\n")
+print(prueba_2a)
+print(prueba_2b)
+```
+
+Ahora podemos concluir.
+
+El análisis indica que debemos rechazar hipótesis nula en favor de la alternativa(t(26)=23,058;p<0,001), por lo que podemos concluir, con 95% de confianza, que la mejor marca de los atletas de raza oriental en los 100 metros planos se redujo en promedio menos de 6,45 segundos (95% CI para la media de las diferencias: [−∞;5,076] [s]) tras el entrenamiento.
+
+# Pregunta 3
+
+**¿Es posible afirmar que, en promedio, los atletas de raza negra superan a los de raza blanca por más de 2 segundos después del entrenamiento?**
+
+En este caso, debemos inferir acerca de las medias de dos muestras independientes, es decir sobre la **diferencia de las medias** de las poblaciones de donde provienen las muestras. Obtengamos las muestras con las que trabajaremos y sus tamaños.
+
+```{r}
+datos_3_neg <- datos |> filter(Raza == "Negra") |> pull(Posterior)
+datos_3_bla <- datos |> filter(Raza == "Blanca") |> pull(Posterior)
+n_3_neg <- length(datos_3_neg)
+n_3_bla <- length(datos_3_bla)
+
+cat("Tamaño de las muestras:", n_3_neg, "y", n_3_bla, "\n")
+```
+
+Como las muestras son pequeñas (menos de 30 observaciones) y no conocemos la(s) desviación(es) estándar(es) de la(s) población(es), sería adecuado usar la **prueba t de Student para dos muestras independientes**. Pero antes debemos verificar las condiciones. Como en el caso de ambas muestras se trata de 28 y 26 atletas diferentes, menor al 10% de la población respectiva, y la elección de una/o en particular no influye en ñla elección de otra/o, podemos suponer que las observaciones son independientes entre sí. Ahora debemos verificar si cada una de las muestras presenta una distribución cercana a la normal.
+
+```{r}
+norm_3_neg <- shapiro.test(datos_3_neg)
+norm_3_bla <- shapiro.test(datos_3_bla)
+
+cat("Comprobación de la normalidad de los datos:\n")
+cat("------------------------------------------:\n")
+cat("Primera muestra:\n")
+print(norm_3_neg)
+cat("Segunda muestra:\n")
+print(norm_3_bla)
+```
+
+Podemos ver que, en ambos casos, las pruebas de normalidad resultan negativas (raza negra: W=0,952;p=0,223; raza blanca: W=0,947;p=0,201), por lo que es razonable suponer que ambas muestras provienen de una o dos distribuciones cercanas a la distribución normal.
+
+Como no hay indicios de que tengamos que ser cautelosos con los resultados, fijamos el nivel de significación en 0,05.
+
+Ahora debemos formular las hipótesis:
+
+H0: después del entrenamiento, en promedio, los atletas de raza negra superan a los de raza blanca por 2 segundos, es decir |μdespuésN−μdespuésB|=2 [s], donde μdespuésN y μdespuésB son las medias de los mejores registros despúes del entrenamiento de los atletas de raza negra y de raza blanca, respectivamente.
+
+HA: tras del entrenamiento, en promedio, los atletas de raza negra superan a los de raza blanca por más de 2 segundos, es decir |μdespuésN−μdespuésB|<2 [s]).
+
+Realicemos la prueba con estas consideraciones y tendiendo cuidado de ser consistentes con si obtendremos una diferencia positiva o negativa y ejecutar la versión adecuada para muestras independientes (es decir, la **prueba de Welch**).
+
+```{r}
+alfa_3 <- 0.05
+valor_nulo_3 <- 2
+
+prueba_3 <- t.test(x = datos_3_bla, y = datos_3_neg, alternative = "greater",
+                   mu = valor_nulo_3, paired = FALSE, conf.level = 1 - alfa_3)
+
+cat("Prueba de hipótesis pregunta 3:\n")
+print(prueba_3)
+```
+
+Interpretemos estos resultados.
+
+No hay evidencia suficiente para rechazar hipótesis nula (t(50,8)=3,838;p>0,999), por lo que podemos concluir, con 95% de confianza, que en promedio las mejores marcas de los atletas de raza negra no supera a las de los atletas de raza blanca en más de 2 segundos (95% CI para la diferencia de las medias: [0,305;∞] [s]) tras el entrenamiento.
+
+# Pregunta 4
+
+**¿Será cierto que hay más atletas de raza blanca que redujeron sus mejores marcas en menos de 2,8 segundos que atletas de raza negra que lo hicieron en menos de 1,5 segundos?**
+
+Primero debemos notar que aquí no nos preguntan por un valor de la variable medida (mejor tiempo registrado por cada atleta), sino que del **número de atletas que cumple una característica** (frecuencias). En particular, nos piden inferir sobre la **diferencia entre dos proporciones** a partir de dos **muestras independientes** de la población.
+
+Formulemos las hipótesis:
+
+H0: la proporción de atletas de raza blanca que redujeron sus mejores marcas en menos de 2,8 segundos (pD<2,8B) no es distinta a la proporción de atletas de raza negra que redujeron sus mejores marcas en menos de 1,5 segundos (pD<1,5N). Matemáticamente: p~D<2,8B − p~D<1,5N = 0.
+
+HA: la proporción de atletas de raza blanca que redujeron sus mejores marcas en menos de 2,8 segundos es mayor a la proporción de atletas de raza negra que redujeron sus mejores marcas en menos de 1,5 segundos. Matemáticamente: pD<2,8B − pD<1,5N > 0.
+
+Obtengamos los datos que necesitamos trabajar. Primero filtramos para dejar los atletas de interés, luego creamos una columna con la disminución de tiempo logrado por el programa de entrenamiento y, finalmente, contamos los éxitos y los totales según lo indicado en el enunciado.
+
+```{r}
+datos_4 <- datos |> filter(Raza == "Blanca" | Raza ==  "Negra")  |>
+  mutate(disminucion = abs(Posterior - Previo))
+
+n_4_bla <- datos_4 |> filter(Raza == "Blanca") |> nrow()
+e_4_bla <- datos_4 |> filter(Raza == "Blanca") |> filter(disminucion >= 2.9) |> nrow()
+
+n_4_neg <- datos_4 |> filter(Raza == "Negra") |> nrow()
+e_4_neg <- datos_4 |> filter(Raza == "Negra") |> filter(disminucion >= 1.6) |> nrow()
+```
+
+Corresponde revisar las condiciones para aplicar una prueba de la diferencia de dos proporciones de forma válida. Por un lado, las muestras son independientes pues, de acuerdo al enunciado, los atletas se eligieron de forma aleatoria y su tamaño es muy inferior al universo de atletas en el mundo. Faltaría entonces verificar que cada proporción, por separado, sigue el modelo normal.
+
+```{r}
+cat("Condiciones:\n")
+cat("Éxitos y fracasos en la muestra de raza blanca:",
+    e_4_bla, ",", n_4_bla - e_4_bla, "\n")
+cat("Éxitos y fracasos en la muestra de raza negra:",
+    e_4_neg, ",", n_4_neg - e_4_neg, "\n")
+```
+
+Vemos que las frecuencias encontradas cumplen (justito) la condición de éxito-fracaso (se espera observar al menos 10 éxitos y al menos 10 fracasos). Podemos entonces continuar con la prueba de proporciones.
+
+Nota: Si la condición de éxito-fracaso no se cumpliera, se podrían seguir dos caminos. Primero, asegurarse de usar la corrección de continuidad de Yates al ejecutar la prueba (`correct = TRUE`) y considerar usar un nivel de significación exigente (α<0,05). La segunda alternativa sería explorar métodos exactos que han estado saliendo en los últimos años, aunque estos no están tan validados por la comunidad todavía. Se puede consultar, por ejemplo:\
+Laurencelle, L. (2021). The exact binomial test between two independent proportions: A companion. The Quantitative Methods for Psychology, 17, 76-79.
+
+Corresponde ahora realizar la prueba.
+
+```{r}
+prueba_4 <- prop.test(c(e_4_bla, e_4_neg), c(n_4_bla, n_4_neg), alternative = "greater")
+
+cat("Pruebas de hipótesis pregunta 4:\n")
+print(prueba_4)
+```
+
+Interpretemos estos resultados.
+
+La prueba nos dice que no hay evidencia suficiente para rechazar la hipótesis nula (χ2(1)=0,335;p=0,281). Así, no hay razones descartar que, tras el entrenamiento, la proporción de atletas de raza blanca que redujeron sus mejores marcas en menos de 2,8 [s] es igual a la proporción de atletas de raza negra que lo hicieron en menos de 1,5 [s] (95% CI para la diferencia de las proporciones: [−0,143;1,000] [s]).

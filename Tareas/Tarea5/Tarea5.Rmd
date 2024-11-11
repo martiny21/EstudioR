@@ -1,0 +1,155 @@
+---
+title: "Solución tarea 5"
+author: "Sofia Gacitua"
+date: "2024-11-11"
+output: html_document
+---
+
+# Enunciado
+
+**En una emocionante competencia de cubos Rubik, participantes de Chile, Argentina, Colombia, Uruguay, Perú y Ecuador demostraron su destreza en resolver tres tipos de cubos: 2x2x2, 3x3x3 y Megaminx.**
+
+**Después del torneo, un grupo de investigadores de la Asociación Mundial del Cubo, interesado en los tiempos que hicieron las jugadoras y los jugadores en la competencia, decidieron estudiar si el país y el tipo de cubo usado en cada prueba tienen influencia en los segundos que se tardan en resolverlos. Para ello usaron una muestra aleatoria de los datos de la competencia, en la cual participaron más de 2.000 personas, con las siguientes variables:**
+
+|              |                                                                                             |
+|--------------|---------------------------------------------------------------------------------------------|
+|              | **Descripción de los datos**                                                                |
+| **Variable** | **Descripción**                                                                             |
+| **id**       | **Identificador único de cada participante.**                                               |
+| **pais**     | **País de procedencia de la persona (Argentina, Chile, Colombia, Ecuador, Perú, Uruguay).** |
+| **tipo**     | **Tipo de cubo usado en la prueba (2x2x2, 3x3x3 y Megaminx).**                              |
+| **tiempo**   | **Tiempo necesitado por cada participante en resolver el cubo de la prueba (en segundos).** |
+
+**¿Existen diferencias en el tiempo de resolución de cubos 3x3x3 entre participantes de Chile, Uruguay y Colombia?**
+
+En esta pregunta se pide inferir acerca de las medias de una variable numérica (tiempo) medidas en grupos independientes formados por un factor con tres niveles (país). Luego se requiere usar un **procedimiento ANOVA para muestras independientes**.
+
+Las hipótesis serían:
+
+H0: los tiempos promedio requeridos para resolver un cubo de tipo 3x3x3 por las y los participantes de Chile (μCL), Uruguay (μUY) y Colombia (μCO) son iguales; es decir (μCL=μUY=μCO).
+
+HA: el tiempo promedio requerido para resolver un cubo de tipo 3x3x3 es diferente para las y los participantes de al menos uno de estos países (∃i,j∈{CL,UY,CO}:μi≠μj∃i,j∈{CL,UY,CO}:μi≠μj).
+
+Comencemos cargando los paquetes que vamos a utilizar.
+
+```{r}
+library(dplyr)
+library(ez)
+library(ggpubr)
+```
+
+Obtengamos la muestra de datos que debemos utilizar.
+
+```{r}
+src_dir <- "~/Downloads"
+src_basename <- "EP05 Datos.csv"
+src_file <- file.path(src_dir, src_basename)
+datos <- read.csv2(src_basename, stringsAsFactors = TRUE)
+datos[["id"]] <- factor(datos[["id"]])
+```
+
+Y seleccionemos datos de interés
+
+```{r}
+datos_largos <- datos |>
+  filter(tipo == "3x3x3") |>
+  filter(pais == "Chile" | pais == "Uruguay" | pais == "Colombia") |>
+  select(id, pais, tiempo) |>
+  droplevels()
+datos_largos[["id"]] <- factor(datos_largos[["id"]])
+
+# Mostramos las primeras filas para comprobar que todo va bien
+head(datos_largos)
+```
+
+Ahora verifiquemos las condiciones para asegurar que podemos aplicar el procedimiento con validez.
+
+La variable dependiente corresponde a tiempo, que sabemos tiene escala de razón, y por lo tanto una escala continua de intervalos iguales, por ser una medida física.
+
+Por otro lado, el enunciado indica que las observaciones son independientes entre sí, pues provienen de personas diferentes.
+
+Revisemos ahora la condición de normalidad por medio de un gráfico Q-Q.
+
+```{r}
+g <- ggqqplot(datos_largos, x = "tiempo", y = "pais", color = "pais")
+
+g <- g + facet_wrap(~ pais)
+g <- g + rremove("x.ticks") + rremove("x.text")
+g <- g + rremove("y.ticks") + rremove("y.text")
+g <- g + rremove("axis.title")
+print(g)
+```
+
+El gráfico generado muestra que la distribución de los datos de cada una de las muestras puede considerarse cercana a la normal pues, si bien no forman una recta, todos se encuentran dentro de la región aceptable del gráfico Q-Q y no se observan comportamientos extraños ni aleatorios.
+
+De forma alternativa, podemos usar pruebas de normalidad para hacer esta verificación. Por el tamaño de las muestras disponibles aquí, sería apropiado aplicar la prueba de Shapiro-Wilk.
+
+```{r}
+# Realizar el test de Shapiro-test para cada país
+tests_normalidad <- by(datos_largos[["tiempo"]],
+                       datos_largos[["pais"]],
+                       shapiro.test)
+print(tests_normalidad)
+```
+
+Vemos que estas pruebas, de forma consistente con los gráficos Q-Q, descartan que debamos sospechar que alguna de estas muestras provenga de una población que no siga una distribución normal.
+
+En cuanto a la condición de homocedasticidad, se posterga su discusión hasta ver el resultado de la prueba de Levene efectuada por `ezAnova()`.
+
+Puesto que hasta ahora no tenemos motivos que indiquen que los datos podrían incumplir alguna de las condiciones, podemos proceder con el procedimiento ANOVA para muestras independientes considerando un nivel de significación de 0,05.
+
+```{r}
+alfa <- 0.05
+
+omnibus <- ezANOVA(
+  data = datos_largos,
+  dv = tiempo, between = pais, wid = id,
+  return_aov = TRUE
+)
+```
+
+Notemos los mensajes que nos presenta esta función. La primera nos advierte usar un “buen” valor para el argumento `type` debido a que las muestras tienen tamaños diferentes. En este caso no hemos cambiado el valor por omisión (`type=2`) que, como se dijo en el apunte, funciona para la mayoría de los casos (al menos al trabajar con un solo factor).
+
+El segundo es menos importante y solamente nos informa de la función que está usando internamente para calcular la matriz de covarianzas.
+
+Veamos el resultado del procedimiento por pantalla.
+
+```{r}
+cat("Resultado de la prueba de Levene:\n")
+print(omnibus[2])
+cat("Resultado de la prueba ANOVA:\n")
+print(omnibus[1])
+cat("Tabla ANOVA tradicional:\n")
+print(summary(omnibus[["aov"]]))
+```
+
+Podemos ver que la prueba de homocedasticidad de Levene resulta no significativa con 95% de confianza (F(2,115)=0,75;p=0,473), por lo que se falla en rechazar la hipótesis nula de esta prueba, y debemos concluir que **no hay suficiente evidencia para descartar** que se cumple la condición de homocedasticidad en estos datos.
+
+Interpretemos este resultado ómnibus.
+
+El procedimiento ANOVA resultó significativo (F(2,115)=103,53;p<0,001). En consecuencia, con 95% de confianza, rechazamos la hipótesis nula en favor de la hipótesis alternativa y concluimos que las y los participantes de al menos un país (Chile, Uruguay o Colombia) resolvieron en una cantidad de tiempo diferente los cubos de 3x3x3.
+
+Puesto que el procedimiento ómnibus encuentra diferencias estadísticamente significativas, es necesario realizar un **procedimiento post-hoc**. Puesto que no requerimos hacer contrastes adicionales, usaremos la prueba HSD de Tukey, más poderosa que los factores de corrección no paramétricos (como el de Holm o el de Benjamini y Hochberg), ya que no se ha descartado que los datos siguen distribuciones normales y con igual varianza.
+
+```{r}
+post_hoc <- TukeyHSD(omnibus[["aov"]], which = "pais",
+                     ordered = TRUE, conf.level = 1 - alfa)
+print(post_hoc)
+```
+
+Podemos ver una representación gráfica del efecto encontrado en este análisis (producido en la variable dependiente `tiempo` por la variable independiente `país`).
+
+```{r}
+g_efecto <- ezPlot(data = datos_largos, x = pais,
+                   dv = tiempo, wid = id, between = pais,
+                   y_lab = " Tiempo para resolver cubos de 3x3x3 [s]")
+```
+
+```{r}
+g_efecto <- g_efecto + theme_pubr()
+print(g_efecto)
+```
+
+Vemos que el gráfico del efecto coincide con los resultados de la prueba post-hoc, mostrando con claridad diferencias entre participantes de los países estudiados. Concluyamos con todos estos resultados.
+
+El análisis post-hoc indica que participantes provenientes de Uruguay son más lentos que quienes vienen de Colombia al resolver un cubo de 3x3x3 (95% IC: [0,363; 0,692] s, p<0,001), que a su vez son más lentos que participantes de Chile (95% IC: [0,304; 0,625] s, p<0,001).
