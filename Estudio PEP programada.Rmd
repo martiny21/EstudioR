@@ -417,3 +417,87 @@ prueba <- prop.test(exitos, n = n, alternative = "two.sided",
 print(prueba)
 ```
 
+## Lectura 5
+### Bondad de ajuste
+
+```{r}
+# Crear tabla de contingencia.
+nomina <- c(236, 78, 204, 76, 66)
+muestra <- c(17, 9, 14, 10, 5)
+
+tabla <- as.table(rbind(nomina, muestra))
+
+dimnames(tabla) <- list(
+  grupo = c("Nómina", "Muestra"),
+  lenguajes = c("C", "Java", "Python", "Ruby", "Otro")
+)
+
+print(tabla)
+
+# Verificar si se esperan más de 5 observaciones por cada grupo.
+n_nomina <- sum(nomina)
+n_muestra <- sum(muestra)
+proporciones <- round(nomina / n_nomina, 3)
+esperados <- round(proporciones * n_muestra, 3)
+cat("\n")
+
+cat("Frecuencias esperadas:\n")
+print(esperados)
+
+# Hacer prueba chi-cuadrado de bondad de ajuste.
+prueba <- chisq.test(tabla, correct = FALSE)
+print(prueba)
+
+```
+Este código crea una tabla de contingencia para comparar las frecuencias observadas entre dos grupos (Nómina y Muestra) y calcula la prueba chi-cuadrado de bondad de ajuste. La prueba verifica si las frecuencias de la muestra están en línea con las frecuencias esperadas basadas en las proporciones de Nómina.
+### Homogeneidad
+
+```{r}
+# Datos de ejemplo
+estudiantes <- c(50, 30, 20) # Preferencias de estudiantes por lenguajes: C, Java, Python
+profesionales <- c(45, 35, 20) # Preferencias de profesionales por lenguajes: C, Java, Python
+
+# Crear tabla de contingencia
+tabla_homogeneidad <- rbind(estudiantes, profesionales)
+dimnames(tabla_homogeneidad) <- list(
+  grupo = c("Estudiantes", "Profesionales"),
+  lenguaje = c("C", "Java", "Python")
+)
+
+print(tabla_homogeneidad)
+
+# Prueba de chi-cuadrado para homogeneidad
+prueba_homogeneidad <- chisq.test(tabla_homogeneidad)
+print(prueba_homogeneidad)
+
+```
+En este ejemplo, la prueba chi-cuadrado verifica si la distribución de preferencias de lenguajes de programación es la misma entre los estudiantes y los profesionales.
+
+### Independencia
+
+```{r}
+# Datos de ejemplo
+tabla_independencia <- matrix(c(30, 20, 10, 25, 30, 15, 15, 25, 35), 
+                              nrow = 3, byrow = TRUE)
+
+dimnames(tabla_independencia) <- list(
+  experiencia = c("Principiante", "Intermedio", "Avanzado"),
+  lenguaje = c("C", "Java", "Python")
+)
+
+print(tabla_independencia)
+
+# Prueba de chi-cuadrado para independencia
+prueba_independencia <- chisq.test(tabla_independencia)
+print(prueba_independencia)
+
+```
+
+En este ejemplo, la prueba chi-cuadrado verifica si el nivel de experiencia y el lenguaje de programación preferido son independientes entre sí.
+
+Interpretación de Resultados
+En ambas pruebas, el valor 𝑝 obtenido en el resultado determina si rechazamos la hipótesis nula:
+
+Si 𝑝≤𝛼 se rechaza la hipótesis nula:
+Para homogeneidad: Hay diferencias significativas en las distribuciones entre los grupos.
+Para independencia: Existe una relación entre las dos variables categóricas.
